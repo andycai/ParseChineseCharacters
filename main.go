@@ -41,16 +41,20 @@ func loopPath(pathStr string, dstFileName string) {
 		dstFileName = "zh-tw.txt"
 	}
 
-	b, err1 := ioutil.ReadFile(dstFileName)
-	if err1 != nil {
-		panic("Can't read")
-	}
-	r := csv.NewReader(strings.NewReader(string(b)))
-	content, _ := r.ReadAll()
+	if isExist(dstFileName) {
+		b, err1 := ioutil.ReadFile(dstFileName)
 
-	l := len(content)
-	for i := 0; i < l; i++ {
-		exportSrcFileContent[content[i][0]] = content[i][1]
+		if err1 != nil {
+			panic("can't read file" + dstFileName)
+		}
+
+		r := csv.NewReader(strings.NewReader(string(b)))
+		content, _ := r.ReadAll()
+
+		l := len(content)
+		for i := 0; i < l; i++ {
+			exportSrcFileContent[content[i][0]] = content[i][1]
+		}
 	}
 
 	err := filepath.Walk(pathStr, func(pathStr string, fileInfo os.FileInfo, err error) error {
@@ -213,8 +217,8 @@ func importAction(tokens []string) {
 func main() {
 	fmt.Println(`	
 	Enter the following commands to use:
-	export sourcePath targetFile -- export the Chinese characters to target, like export ctrl lang.txt
-	import sourceFile targetFile -- import the source file Chinese characters to target, like import lang1.txt lang2.txt
+	export sourcePath targetFile -- export the Chinese characters to target, like "export codepath zh-tw.csv"
+	import sourceFile targetFile -- import the source file Chinese characters to target, like "import zh-tw.csv zh-tw.php"
 	quit | q -- quit the tool
 	`)
 
