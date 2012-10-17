@@ -67,13 +67,43 @@ func loopPath(pathStr string, dstFileName string) {
 			panic("can't read file" + dstFileName)
 		}
 
-		r := csv.NewReader(strings.NewReader(string(b)))
-		content, _ := r.ReadAll()
+		//		r := csv.NewReader(strings.NewReader(string(b)))
+		//		content, _ := r.ReadAll()
 
-		l := len(content)
-		for i := 0; i < l; i++ {
-			exportSrcFileContent[content[i][0]] = content[i][1]
+		//		l := len(content)
+		//		fmt.Printf("file [%s] line: %d \n", dstFileName, l)
+		//		for i := 0; i < l; i++ {
+		//			exportSrcFileContent[content[i][0]] = content[i][1]
+		//		}
+
+		r := bufio.NewReader(strings.NewReader(string(b)))
+
+		defer func() {
+			if e, ok := recover().(error); ok {
+				fmt.Println("[WARNING]", e)
+			}
+		}()
+
+		var err2 error
+		for err2 == nil {
+			isP := true
+			lineNum := 0
+			line := []byte{}
+
+			for isP {
+				line, isP, err2 = r.ReadLine()
+				lineNum = lineNum + 1
+				if err2 != nil && err2.Error() != "EOF" {
+					panic(fmt.Sprintf("can't read file [%s] line %d \n", dstFileName, lineNum))
+				}
+
+				chars := strings.Split(string(line), ",")
+				if len(chars) == 2 {
+					exportSrcFileContent[chars[0]] = chars[1]
+				}
+			}
 		}
+		fmt.Printf("file [%s] line: %d \n", dstFileName, len(exportSrcFileContent))
 	}
 
 	err := filepath.Walk(pathStr, func(pathStr string, fileInfo os.FileInfo, err error) error {
@@ -110,6 +140,8 @@ func loopPath(pathStr string, dstFileName string) {
 
 	defer func() {
 		f.Close()
+		exportTable = []byte{}
+		exportSrcFileContent = map[string]string{}
 		if e, ok := recover().(error); ok {
 			fmt.Println("[WARNING]", e)
 		}
@@ -133,8 +165,8 @@ func parseFile(filePath string, dstFileName string) {
 
 	for err == nil {
 		isP := true
-		var line []byte
-		var item []byte
+		line := []byte{}
+		item := []byte{}
 
 		for isP {
 			line, isP, err = r.ReadLine()
@@ -210,6 +242,12 @@ func importAction(tokens []string) {
 	if isExist(srcFile) {
 		b, err := ioutil.ReadFile(srcFile)
 
+		defer func() {
+			if e, ok := recover().(error); ok {
+				fmt.Println("[WARNING]", e)
+			}
+		}()
+
 		if err != nil {
 			panic("Can't read the file " + srcFile)
 		}
@@ -217,16 +255,22 @@ func importAction(tokens []string) {
 		content, _ := r.ReadAll()
 
 		l := len(content)
-		importTable = append(importTable, []byte("<?php defined('SYSPATH') or die('No direct script access.');\n\n")...)
-		importTable = append(importTable, []byte("return array\n(\n")...)
-		for i := 0; i < l; i++ {
-			importTable = append(importTable, []byte(fmt.Sprintf("\t'%s' => '%s',\n", content[i][0], content[i][1]))...)
+		fmt.Printf("Data line: %d \n", l)
+		if l > 0 {
+			importTable = append(importTable, []byte("<?php defined('SYSPATH') or die('No direct script access.');\n\n")...)
+			importTable = append(importTable, []byte("return array\n(\n")...)
+			for i := 0; i < l; i++ {
+				importTable = append(importTable, []byte(fmt.Sprintf("\t'%s' => '%s',\n", content[i][0], content[i][1]))...)
+			}
+			importTable = append(importTable, []byte(");")...)
 		}
-		importTable = append(importTable, []byte(");")...)
 	}
 
 	f, err1 := os.OpenFile(dstFile, os.O_RDWR|os.O_CREATE, 0644)
-	f.Write(importTable)
+
+	if len(importTable) > 0 {
+		f.Write(importTable)
+	}
 
 	defer func() {
 		f.Close()
