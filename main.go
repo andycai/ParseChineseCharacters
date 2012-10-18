@@ -98,7 +98,7 @@ func loopPath(pathStr string, dstFileName string) {
 				}
 
 				chars := strings.Split(string(line), ",")
-				if len(chars) == 2 {
+				if len(chars) >= 2 {
 					exportSrcFileContent[chars[0]] = chars[1]
 				}
 			}
