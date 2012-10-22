@@ -166,7 +166,6 @@ func parseFile(filePath string, dstFileName string) {
 	for err == nil {
 		isP := true
 		line := []byte{}
-		item := []byte{}
 
 		for isP {
 			line, isP, err = r.ReadLine()
@@ -178,31 +177,35 @@ func parseFile(filePath string, dstFileName string) {
 			if strings.Contains(string(line), "__") && string(line[:2]) != "//" {
 
 				re, _ := regexp.Compile("__\\(\\s*(\\'|\")(.*?)(\\'|\")\\s*\\)")
-				submatch := re.FindSubmatch(line)
+				submatchall := re.FindAllSubmatch(line, -1)
 
-				if len(submatch) > 2 {
+				if len(submatchall) >= 1 {
+					for _, submatch := range submatchall {
+						item := []byte{}
+						if len(submatch) > 2 {
+							if _, eok := exportSrcFileContent[string(submatch[2])]; !eok {
+								if debug == true {
+									fileI := fmt.Sprintf("line:%d %s", lineNum, filePath)
+									item = append(item, []byte(fileI)...)
+									item = append(item, []byte(",")...)
+									item = append(item, line...)
+									item = append(item, []byte(",")...)
+								}
+								item = append(item, submatch[2]...)
+								item = append(item, []byte(",")...)
+								item = append(item, submatch[2]...)
+								item = append(item, []byte("\n")...)
 
-					if _, eok := exportSrcFileContent[string(submatch[2])]; !eok {
-						if debug == true {
-							fileI := fmt.Sprintf("line:%d %s", lineNum, filePath)
-							item = append(item, []byte(fileI)...)
-							item = append(item, []byte(",")...)
-							item = append(item, line...)
-							item = append(item, []byte(",")...)
-						}
-						item = append(item, submatch[2]...)
-						item = append(item, []byte(",")...)
-						item = append(item, submatch[2]...)
-						item = append(item, []byte("\n")...)
-
-						keyStr := strconv.QuoteToASCII(string(submatch[2]))
-
-						if _, ok := maps[keyStr]; !ok && string(submatch[2]) != "" {
-							maps[keyStr] = 1
-							exportTable = append(exportTable, item...)
-							totalI = totalI + 1
+								keyStr := strconv.QuoteToASCII(string(submatch[2]))
+								if _, ok := maps[keyStr]; !ok && string(submatch[2]) != "" {
+									maps[keyStr] = 1
+									exportTable = append(exportTable, item...)
+									totalI = totalI + 1
+								}
+							}
 						}
 					}
+
 				}
 			}
 		}
